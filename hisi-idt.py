@@ -53,19 +53,23 @@ class bootdownload(object):
     ]
 
     startframe = {
-        'hi3716cv200':[0xFE,0x00,0xFF,0x01,0x00,0x00,0x00,0x04,0x00,0x00,0x02,0x01]
+        'hi3716cv200':[0xFE,0x00,0xFF,0x01,0x00,0x00,0x00,0x04,0x00,0x00,0x02,0x01],
+        'hi3521a':    [0xFE,0x00,0xFF,0x01,0x00,0x00,0x00,0x04,0x00,0x00,0x02,0x01],
     }
 
     headframe = {
-        'hi3716cv200':[0xFE,0x00,0xFF,0x01,0x00,0x00,0x00,0x04,0x00,0x00,0x02,0x01]
+        'hi3716cv200':[0xFE,0x00,0xFF,0x01,0x00,0x00,0x00,0x04,0x00,0x00,0x02,0x01],
+        'hi3521a':    [0xFE,0x00,0xFF,0x01,0x00,0x00,0x00,0x04,0x00,0x00,0x02,0x01],
     }
 
     bootheadaddress = {
-        'hi3716cv200':0xF9800800
+        'hi3716cv200':0xF9800800,
+        'hi3521a':    0x04010500,
     }
 
     bootdownloadaddress = {
-        'hi3716cv200':0x07000000
+        'hi3716cv200':0x07000000,
+        'hi3521a':    0x81000000,
     }
 
     BOOT_HEAD_LEN = 0x4F00
@@ -88,7 +92,7 @@ class bootdownload(object):
 
     def calc_crc(self, data, crc=0):
         for char in data:
-            crc = ((crc << 8) | ord(char)) ^ self.crctable[(crc >> 8) & 0xff]
+            crc = ((crc << 8) | char) ^ self.crctable[(crc >> 8) & 0xff]
         for i in range(0,2):
             crc = ((crc << 8) | 0) ^ self.crctable[(crc >> 8) & 0xff]
         return crc & 0xffff
@@ -114,7 +118,7 @@ class bootdownload(object):
 
     def sendstartframe(self):
         self.s.timeout =0.01
-        data = array.array('B', self.startframe[self.chip]).tostring()
+        data = array.array('B', self.startframe[self.chip]).tobytes()
         crc = self.calc_crc(data)
         data += chr((crc >> 8)&0xff)
         data += chr(crc&0xff)
@@ -131,7 +135,7 @@ class bootdownload(object):
         self.headframe[self.chip][10] = (address>>8)&0xff
         self.headframe[self.chip][11] = (address)&0xff
 
-        data = array.array('B', self.headframe[self.chip]).tostring()
+        data = array.array('B', self.headframe[self.chip]).tobytes()
         crc = self.calc_crc(data)
 
         data += chr((crc >> 8)&0xff)
@@ -228,14 +232,15 @@ def main(argv):
     dev  = '';
     dev1 = '/dev/serial/by-id/usb-䕇䕎䥎_㄰㌲㔴㜶㤸-if00-port0'
     dev2 = '/dev/serial/by-id/pci-䕇䕎䥎_㄰㌲㔴㜶㤸-if00-port0'
+    chip = 'hi3716cv200'
     try:
-        opts, args = getopt.getopt(argv,"hd:",["img1=","img2="])
+        opts, args = getopt.getopt(argv,"hd:",["chip=","img1=","img2="])
     except getopt.GetoptError:
-        print('hisi-idt.py -d device --img1 <fastboot1> --img2 <fastboot2>')
+        print('hisi-idt.py --chip chiptype -d device --img1 <fastboot1> --img2 <fastboot2>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('hisi-idt.py -d device --img1 <fastboot1> --img2 <fastboot2>')
+            print('hisi-idt.py --chip chiptype -d device --img1 <fastboot1> --img2 <fastboot2>')
             sys.exit()
         elif opt in ("-d"):
             dev = arg
@@ -243,6 +248,8 @@ def main(argv):
             img1 = arg
         elif opt in ("--img2"):
             img2 = arg
+        elif opt in ("--chip"):
+            chip = arg
     if dev == '':
         if os.path.exists(dev1):
             dev = dev1
@@ -252,6 +259,7 @@ def main(argv):
             print('Device not detected under /dev/serial/by-id/. Please use -d.')
             sys.exit(3)
     print('+----------------------+')
+    print(' Chip:   ', chip)
     print(' Serial: ', dev)
     print(' Image1: ', img1)
     print(' Image2: ', img2)
@@ -266,7 +274,7 @@ def main(argv):
             print("Image don't exists:", img2)
             sys.exit(1)
 
-    burnboot('hi3716cv200', dev, img1, img2)
+    burnboot(chip, dev, img1, img2)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
